@@ -1,0 +1,19 @@
+name: Test Spot Runner
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on:
+      - self-hosted
+      - linux
+      - spot
+
+    steps:
+      - name: Check runner
+        run: |
+          hostname
+          uname -a
+          docker --version
+          aws sts get-caller-identity

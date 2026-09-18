@@ -1,0 +1,66 @@
+name: ASG Deployment
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on:
+      - self-hosted
+      - secondfactor
+      - linux
+
+    steps:
+
+      - name: Configure AWS
+        run: |
+          aws sts get-caller-identity
+          aws configure set region ap-south-1
+
+      - name: Start ASG Instance Refresh
+        run: |
+          aws autoscaling start-instance-refresh \
+            --auto-scaling-group-name asdasd \
+            --preferences \
+              MinHealthyPercentage=100, \
+              MaxHealthyPercentage=200
+              InstanceWarmup=300
+
+      - name: Get Instance Refresh ID
+        id: refresh
+        run: |
+          REFRESH_ID=$(aws autoscaling describe-instance-refreshes \
+            --auto-scaling-group-name asdasd \
+            --query 'InstanceRefreshes[0].InstanceRefreshId' \
+            --output text)
+
+          echo "refresh_id=$REFRESH_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for Instance Refresh
+        run: |
+          while true; do
+
+            STATUS=$(aws autoscaling describe-instance-refreshes \
+              --auto-scaling-group-name asdasd \
+              --query "InstanceRefreshes[?InstanceRefreshId=='${{ steps.refresh.outputs.refresh_id }}'].Status" \
+              --output text)
+
+            echo "Instance Refresh Status: $STATUS"
+
+            case "$STATUS" in
+              Successful)
+                echo "Instance refresh completed successfully."
+                break
+                ;;
+
+              Failed|Cancelled|RollbackFailed)
+                echo "Instance refresh failed."
+                exit 1
+                ;;
+
+              *)
+                sleep 30
+                ;;
+            esac
+
+          done

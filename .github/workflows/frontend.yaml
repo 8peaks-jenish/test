@@ -1,4 +1,7 @@
 jobs:
+  push:
+    branches:
+      - '**'
   deploy:
     runs-on: self-hosted
 

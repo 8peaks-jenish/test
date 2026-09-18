@@ -1,7 +1,11 @@
-jobs:
+name: Frontend Deployment
+
+on:
   push:
     branches:
       - '**'
+
+jobs:
   deploy:
     runs-on: self-hosted
 
@@ -27,18 +31,21 @@ jobs:
             --output text > .env.production
 
       - name: Install dependencies
-        run: pwd && ls && npm ci
+        run: |
+          pwd
+          ls -la
+          npm ci
 
       - name: Build frontend
-        run:  npm run build
+        run: npm run build
 
       - name: Deploy control to S3
         run: |
-          aws s3 sync dist/control/ s3://$S3_BUCKET/control --delete
+          aws s3 sync dist/control/ s3://$S3_BUCKET/control/ --delete
 
-       - name: Deploy web to S3
+      - name: Deploy web to S3
         run: |
-          aws s3 sync dist/web/ s3://$S3_BUCKET/web --delete     
+          aws s3 sync dist/web/ s3://$S3_BUCKET/web/ --delete
 
       - name: CloudFront invalidation
         working-directory: .
@@ -53,4 +60,5 @@ jobs:
 
       - name: Remove environment file
         if: always()
-        run: rm -f .env.production
+        run: |
+          rm -f frontend/.env.production

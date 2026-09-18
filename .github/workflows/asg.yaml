@@ -18,23 +18,20 @@ jobs:
           aws configure set region ap-south-1
 
       - name: Start ASG Instance Refresh
-        run: |
-          aws autoscaling start-instance-refresh \
-            --auto-scaling-group-name asdasd \
-            --preferences \
-              MinHealthyPercentage=100, \
-              MaxHealthyPercentage=200
-              InstanceWarmup=300
-
-      - name: Get Instance Refresh ID
         id: refresh
         run: |
-          REFRESH_ID=$(aws autoscaling describe-instance-refreshes \
+          REFRESH_ID=$(aws autoscaling start-instance-refresh \
             --auto-scaling-group-name asdasd \
-            --query 'InstanceRefreshes[0].InstanceRefreshId' \
+            --preferences MinHealthyPercentage=100,MaxHealthyPercentage=200,InstanceWarmup=300 \
+            --query 'InstanceRefreshId' \
             --output text)
 
           echo "refresh_id=$REFRESH_ID" >> "$GITHUB_OUTPUT"
+
+          echo "=========================================="
+          echo "ASG Instance Refresh Started"
+          echo "Refresh ID: $REFRESH_ID"
+          echo "=========================================="
 
       - name: Wait for Instance Refresh
         run: |
@@ -48,19 +45,56 @@ jobs:
             echo "Instance Refresh Status: $STATUS"
 
             case "$STATUS" in
+
               Successful)
+                echo "=========================================="
                 echo "Instance refresh completed successfully."
+                echo "=========================================="
                 break
                 ;;
 
-              Failed|Cancelled|RollbackFailed)
-                echo "Instance refresh failed."
+              Failed)
+                echo "=========================================="
+                echo "Instance refresh FAILED."
+                echo "=========================================="
                 exit 1
                 ;;
 
-              *)
+              Cancelled)
+                echo "=========================================="
+                echo "Instance refresh was CANCELLED."
+                echo "=========================================="
+                exit 1
+                ;;
+
+              RollbackFailed)
+                echo "=========================================="
+                echo "Instance refresh ROLLBACK FAILED."
+                echo "=========================================="
+                exit 1
+                ;;
+
+              Pending|InProgress|Baking)
+                echo "Instance refresh still running..."
                 sleep 30
                 ;;
+
+              *)
+                echo "Unknown status: $STATUS"
+                sleep 30
+                ;;
+
             esac
 
           done
+
+      - name: Verify ASG Instances
+        run: |
+          echo "=========================================="
+          echo "Current ASG Instances"
+          echo "=========================================="
+
+          aws autoscaling describe-auto-scaling-groups \
+            --auto-scaling-group-names asdasd \
+            --query 'AutoScalingGroups[0].Instances[*].[InstanceId,HealthStatus,LifecycleState,ProtectedFromScaleIn]' \
+            --output table

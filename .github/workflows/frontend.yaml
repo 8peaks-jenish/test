@@ -1,13 +1,14 @@
 name: Frontend Deployment
 
 on:
-  push:
-    branches:
-      - '**'
+  workflow_dispatch:
 
 jobs:
   deploy:
-    runs-on: self-hosted
+    runs-on:
+      - self-hosted
+      - secondfactor
+      - linux
 
     env:
       AWS_REGION: ap-south-1

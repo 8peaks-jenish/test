@@ -1,0 +1,53 @@
+jobs:
+  deploy:
+    runs-on: self-hosted
+
+    env:
+      AWS_REGION: ap-south-1
+      S3_BUCKET: second-test-runner
+
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Get production environment
+        run: |
+          aws secretsmanager get-secret-value \
+            --secret-id secondfactor/prod/frontend-env \
+            --region "$AWS_REGION" \
+            --query SecretString \
+            --output text > .env.production
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build frontend
+        run: npm run build
+
+      - name: Deploy control to S3
+        run: |
+          aws s3 sync dist/control/ s3://$S3_BUCKET/control --delete
+
+       - name: Deploy web to S3
+        run: |
+          aws s3 sync dist/web/ s3://$S3_BUCKET/web --delete     
+
+      - name: CloudFront invalidation
+        working-directory: .
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id E2ZANABYQOSDAV \
+            --paths "/*"
+
+          aws cloudfront create-invalidation \
+            --distribution-id E3QA85KPLIGZD0 \
+            --paths "/*"
+
+      - name: Remove environment file
+        if: always()
+        run: rm -f .env.production

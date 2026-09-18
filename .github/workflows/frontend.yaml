@@ -24,10 +24,10 @@ jobs:
             --output text > .env.production
 
       - name: Install dependencies
-        run: npm ci
+        run: pwd && ls && npm ci
 
       - name: Build frontend
-        run: npm run build
+        run:  npm run build
 
       - name: Deploy control to S3
         run: |
